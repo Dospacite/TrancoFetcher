@@ -32,6 +32,7 @@ class Settings:
     batch_size: int = 10
     request_timeout_ms: int = 45_000
     request_wait_ms: int = 1_500
+    preflight_timeout_seconds: int = 10
     headless: bool = True
     network_idle: bool = True
     disable_resources: bool = False
@@ -64,6 +65,7 @@ class Settings:
             batch_size=_env_int("TRANCO_BATCH_SIZE", 10),
             request_timeout_ms=_env_int("TRANCO_REQUEST_TIMEOUT_MS", 45_000),
             request_wait_ms=_env_int("TRANCO_REQUEST_WAIT_MS", 1_500),
+            preflight_timeout_seconds=_env_int("TRANCO_PREFLIGHT_TIMEOUT_SECONDS", 10),
             headless=_env_bool("TRANCO_HEADLESS", True),
             network_idle=_env_bool("TRANCO_NETWORK_IDLE", True),
             disable_resources=_env_bool("TRANCO_DISABLE_RESOURCES", False),
@@ -71,4 +73,3 @@ class Settings:
             allow_http_fallback=_env_bool("TRANCO_ALLOW_HTTP_FALLBACK", True),
             dry_run=_env_bool("TRANCO_DRY_RUN", False),
         )
-

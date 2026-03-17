@@ -10,10 +10,12 @@ This project reads domains from `tranco_W4XN9.csv`, fetches website content with
 - Skips domains that already exist in `tranco.websites`
 - Fetches the next batch of unfetched Tranco domains with Scrapling's `StealthySession`
 - Tries multiple hostname variants for each domain:
-  - `https://domain`
-  - `http://domain`
   - `https://www.domain`
   - `http://www.domain`
+  - `https://domain`
+  - `http://domain`
+- For domains without a subdomain, `www.` is tried first by default
+- Uses a fast HTTP preflight before opening the browser, so redirects like `google.com -> www.google.com` are resolved early
 - Continues to the next variant when a candidate is unreachable or returns HTTP `4xx`/`5xx`
 - Stores documents shaped like:
   - `url`
@@ -46,6 +48,7 @@ The project reads these settings from `.env` or the container environment:
 - `TRANCO_SCREENSHOT_DIR` default: `data/screenshots`
 - `TRANCO_REQUEST_TIMEOUT_MS` default: `45000`
 - `TRANCO_REQUEST_WAIT_MS` default: `1500`
+- `TRANCO_PREFLIGHT_TIMEOUT_SECONDS` default: `10`
 - `TRANCO_HEADLESS` default: `true`
 - `TRANCO_NETWORK_IDLE` default: `true`
 - `TRANCO_DISABLE_RESOURCES` default: `false`

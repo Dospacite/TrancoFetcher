@@ -9,8 +9,11 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+import requests
 from scrapling.fetchers import StealthySession
 import tldextract
+from urllib3 import disable_warnings
+from urllib3.exceptions import InsecureRequestWarning
 
 from .config import Settings
 from .mongo import TrancoTarget
@@ -19,6 +22,7 @@ from .rdap import lookup_rdap
 LOGGER = logging.getLogger(__name__)
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 EXTRACT = tldextract.TLDExtract(suffix_list_urls=None)
+disable_warnings(InsecureRequestWarning)
 
 
 class WebsiteScraper:
@@ -32,7 +36,23 @@ class WebsiteScraper:
 
         last_document: dict[str, Any] | None = None
         for requested_url in attempts:
-            document = self._scrape_url(requested_url=requested_url, domain=target.domain, rdap=rdap)
+            preflight = self._preflight_url(requested_url)
+            if preflight["skip"]:
+                LOGGER.warning(
+                    "Preflight rejected %s with status=%s error=%s",
+                    requested_url,
+                    preflight.get("status_code"),
+                    preflight.get("error"),
+                )
+                last_document = self._preflight_error_document(requested_url, rdap, preflight)
+                continue
+
+            document = self._scrape_url(
+                requested_url=preflight["final_url"],
+                domain=target.domain,
+                rdap=rdap,
+                requested_from=requested_url,
+            )
             last_document = document
             if self._is_usable_document(document):
                 return document
@@ -41,7 +61,13 @@ class WebsiteScraper:
         assert last_document is not None
         return last_document
 
-    def _scrape_url(self, requested_url: str, domain: str, rdap: dict[str, Any]) -> dict[str, Any]:
+    def _scrape_url(
+        self,
+        requested_url: str,
+        domain: str,
+        rdap: dict[str, Any],
+        requested_from: str | None = None,
+    ) -> dict[str, Any]:
         timestamp = datetime.now(timezone.utc)
         screenshot_relative = self._build_screenshot_path(domain=domain, requested_url=requested_url, timestamp=timestamp)
         screenshot_absolute = self.settings.project_root / screenshot_relative
@@ -69,6 +95,7 @@ class WebsiteScraper:
                 "error": None,
                 "metadata": {
                     "url": requested_url,
+                    "requested_from": requested_from or requested_url,
                     "error": str(exc),
                 },
                 "rdap": rdap,
@@ -97,6 +124,7 @@ class WebsiteScraper:
             "fetched_at": finished_at,
             "metadata": {
                 "url": requested_url,
+                "requested_from": requested_from or requested_url,
                 "status_code": response.status,
                 "headers": dict(response.headers),
                 "encoding": response.encoding,
@@ -121,7 +149,7 @@ class WebsiteScraper:
 
         # Some apex domains only serve content on the www host.
         if extracted.suffix and extracted.subdomain == "":
-            hostnames.append(f"www.{domain}")
+            hostnames = [f"www.{domain}", domain]
 
         urls: list[str] = []
         for hostname in hostnames:
@@ -137,6 +165,67 @@ class WebsiteScraper:
         if not isinstance(status_code, int):
             return False
         return status_code < 400
+
+    def _preflight_url(self, url: str) -> dict[str, Any]:
+        try:
+            response = requests.get(
+                url,
+                allow_redirects=True,
+                timeout=self.settings.preflight_timeout_seconds,
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+        except requests.exceptions.SSLError:
+            try:
+                response = requests.get(
+                    url,
+                    allow_redirects=True,
+                    timeout=self.settings.preflight_timeout_seconds,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    verify=False,
+                )
+            except requests.RequestException as exc:
+                return {
+                    "final_url": url,
+                    "error": str(exc),
+                    "skip": False,
+                }
+            return {
+                "final_url": response.url or url,
+                "status_code": response.status_code,
+                "skip": response.status_code >= 400,
+                "insecure": True,
+            }
+        except requests.RequestException as exc:
+            return {
+                "final_url": url,
+                "error": str(exc),
+                "skip": False,
+            }
+
+        return {
+            "final_url": response.url or url,
+            "status_code": response.status_code,
+            "skip": response.status_code >= 400,
+        }
+
+    @staticmethod
+    def _preflight_error_document(requested_url: str, rdap: dict[str, Any], preflight: dict[str, Any]) -> dict[str, Any]:
+        metadata: dict[str, Any] = {
+            "url": requested_url,
+        }
+        if "final_url" in preflight:
+            metadata["final_url"] = preflight["final_url"]
+        if "status_code" in preflight:
+            metadata["status_code"] = preflight["status_code"]
+        if "error" in preflight:
+            metadata["error"] = preflight["error"]
+
+        return {
+            "url": requested_url,
+            "error": None,
+            "metadata": metadata,
+            "rdap": rdap,
+        }
 
     def _build_screenshot_path(self, domain: str, requested_url: str, timestamp: datetime) -> Path:
         token = hashlib.sha1(requested_url.encode("utf-8")).hexdigest()[:8]
