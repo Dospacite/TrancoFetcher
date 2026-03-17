@@ -9,6 +9,12 @@ This project reads domains from `tranco_W4XN9.csv`, fetches website content with
 - Creates a unique index on `url`
 - Skips domains that already exist in `tranco.websites`
 - Fetches the next batch of unfetched Tranco domains with Scrapling's `StealthySession`
+- Tries multiple hostname variants for each domain:
+  - `https://domain`
+  - `http://domain`
+  - `https://www.domain`
+  - `http://www.domain`
+- Continues to the next variant when a candidate is unreachable or returns HTTP `4xx`/`5xx`
 - Stores documents shaped like:
   - `url`
   - `title`
@@ -66,4 +72,3 @@ Screenshots are written to `data/screenshots/`.
 ## Research Note
 
 This workflow is intended for academic research. Review your institutional requirements, the target websites' terms, and applicable law before large-scale collection.
-

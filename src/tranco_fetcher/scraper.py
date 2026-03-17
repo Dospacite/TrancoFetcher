@@ -10,6 +10,7 @@ from time import perf_counter
 from typing import Any
 
 from scrapling.fetchers import StealthySession
+import tldextract
 
 from .config import Settings
 from .mongo import TrancoTarget
@@ -17,6 +18,7 @@ from .rdap import lookup_rdap
 
 LOGGER = logging.getLogger(__name__)
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+EXTRACT = tldextract.TLDExtract(suffix_list_urls=None)
 
 
 class WebsiteScraper:
@@ -26,15 +28,13 @@ class WebsiteScraper:
 
     def scrape_target(self, target: TrancoTarget) -> dict[str, Any]:
         rdap = lookup_rdap(target.domain)
-        attempts = [f"https://{target.domain}"]
-        if self.settings.allow_http_fallback:
-            attempts.append(f"http://{target.domain}")
+        attempts = self._candidate_urls(target.domain)
 
         last_document: dict[str, Any] | None = None
         for requested_url in attempts:
             document = self._scrape_url(requested_url=requested_url, domain=target.domain, rdap=rdap)
             last_document = document
-            if "status_code" in document.get("metadata", {}):
+            if self._is_usable_document(document):
                 return document
             LOGGER.warning("Fetch failed for %s, trying next candidate if available.", requested_url)
 
@@ -115,6 +115,29 @@ class WebsiteScraper:
 
         return document
 
+    def _candidate_urls(self, domain: str) -> list[str]:
+        extracted = EXTRACT(domain)
+        hostnames = [domain]
+
+        # Some apex domains only serve content on the www host.
+        if extracted.suffix and extracted.subdomain == "":
+            hostnames.append(f"www.{domain}")
+
+        urls: list[str] = []
+        for hostname in hostnames:
+            urls.append(f"https://{hostname}")
+            if self.settings.allow_http_fallback:
+                urls.append(f"http://{hostname}")
+        return urls
+
+    @staticmethod
+    def _is_usable_document(document: dict[str, Any]) -> bool:
+        metadata = document.get("metadata", {})
+        status_code = metadata.get("status_code")
+        if not isinstance(status_code, int):
+            return False
+        return status_code < 400
+
     def _build_screenshot_path(self, domain: str, requested_url: str, timestamp: datetime) -> Path:
         token = hashlib.sha1(requested_url.encode("utf-8")).hexdigest()[:8]
         filename = f"{self._safe_slug(domain)}_{token}_{timestamp.strftime('%Y%m%d_%H%M%S')}.png"
@@ -130,4 +153,3 @@ class WebsiteScraper:
     @staticmethod
     def _safe_slug(value: str) -> str:
         return re.sub(r"[^a-zA-Z0-9.-]+", "_", value).strip("_") or "site"
-
