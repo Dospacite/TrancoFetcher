@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import hashlib
 import html
 import logging
 import re
 from datetime import datetime, timezone
-from pathlib import Path
 from time import perf_counter
 from typing import Any
 
@@ -49,7 +47,6 @@ class WebsiteScraper:
 
             document = self._scrape_url(
                 requested_url=preflight["final_url"],
-                domain=target.domain,
                 rdap=rdap,
                 requested_from=requested_url,
             )
@@ -64,27 +61,13 @@ class WebsiteScraper:
     def _scrape_url(
         self,
         requested_url: str,
-        domain: str,
         rdap: dict[str, Any],
         requested_from: str | None = None,
     ) -> dict[str, Any]:
-        timestamp = datetime.now(timezone.utc)
-        screenshot_relative = self._build_screenshot_path(domain=domain, requested_url=requested_url, timestamp=timestamp)
-        screenshot_absolute = self.settings.project_root / screenshot_relative
-        screenshot_holder: dict[str, str] = {}
-
-        def capture_screenshot(page: Any) -> None:
-            if not self.settings.screenshot_dir:
-                return
-            screenshot_absolute.parent.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(screenshot_absolute), full_page=True)
-            screenshot_holder["path"] = screenshot_relative.as_posix()
-
         started = perf_counter()
         try:
             response = self.session.fetch(
                 requested_url,
-                page_action=capture_screenshot,
                 timeout=self.settings.request_timeout_ms,
                 wait=self.settings.request_wait_ms,
                 network_idle=self.settings.network_idle,
@@ -100,8 +83,6 @@ class WebsiteScraper:
                 },
                 "rdap": rdap,
             }
-            if screenshot_holder.get("path"):
-                document["screenshot_path"] = screenshot_holder["path"]
             return document
 
         finished_at = datetime.now(timezone.utc)
@@ -137,9 +118,6 @@ class WebsiteScraper:
             },
             "rdap": rdap,
         }
-
-        if screenshot_holder.get("path"):
-            document["screenshot_path"] = screenshot_holder["path"]
 
         return document
 
@@ -227,18 +205,9 @@ class WebsiteScraper:
             "rdap": rdap,
         }
 
-    def _build_screenshot_path(self, domain: str, requested_url: str, timestamp: datetime) -> Path:
-        token = hashlib.sha1(requested_url.encode("utf-8")).hexdigest()[:8]
-        filename = f"{self._safe_slug(domain)}_{token}_{timestamp.strftime('%Y%m%d_%H%M%S')}.png"
-        return self.settings.screenshot_dir.relative_to(self.settings.project_root) / filename
-
     @staticmethod
     def _extract_title(body: str) -> str:
         match = TITLE_RE.search(body)
         if not match:
             return ""
         return html.unescape(" ".join(match.group(1).split()))
-
-    @staticmethod
-    def _safe_slug(value: str) -> str:
-        return re.sub(r"[^a-zA-Z0-9.-]+", "_", value).strip("_") or "site"

@@ -26,7 +26,6 @@ class Settings:
     project_root: Path
     mongo_connection_string: str
     tranco_csv_path: Path
-    screenshot_dir: Path
     mongo_db_name: str = "tranco"
     mongo_collection_name: str = "websites"
     batch_size: int = 10
@@ -50,18 +49,14 @@ class Settings:
             raise RuntimeError("MONGO_CONNECTION_STRING is required.")
 
         csv_path = Path(os.getenv("TRANCO_CSV_PATH", "tranco_W4XN9.csv"))
-        screenshot_dir = Path(os.getenv("TRANCO_SCREENSHOT_DIR", "data/screenshots"))
 
         if not csv_path.is_absolute():
             csv_path = root / csv_path
-        if not screenshot_dir.is_absolute():
-            screenshot_dir = root / screenshot_dir
 
         return cls(
             project_root=root,
             mongo_connection_string=mongo_connection_string,
             tranco_csv_path=csv_path,
-            screenshot_dir=screenshot_dir,
             batch_size=_env_int("TRANCO_BATCH_SIZE", 10),
             request_timeout_ms=_env_int("TRANCO_REQUEST_TIMEOUT_MS", 45_000),
             request_wait_ms=_env_int("TRANCO_REQUEST_WAIT_MS", 1_500),

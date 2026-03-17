@@ -9,6 +9,7 @@ This project reads domains from `tranco_W4XN9.csv`, fetches website content with
 - Creates a unique index on `url`
 - Skips domains that already exist in `tranco.websites`
 - Fetches the next batch of unfetched Tranco domains with Scrapling's `StealthySession`
+- Looks up RDAP metadata for each domain and falls back to WHOIS when RDAP is unavailable
 - Tries multiple hostname variants for each domain:
   - `https://www.domain`
   - `http://www.domain`
@@ -25,7 +26,6 @@ This project reads domains from `tranco_W4XN9.csv`, fetches website content with
   - `fetched_at`
   - `metadata`
   - `rdap`
-  - `screenshot_path`
 
 ## Local Environment
 
@@ -45,7 +45,6 @@ The project reads these settings from `.env` or the container environment:
 - `MONGO_CONNECTION_STRING`
 - `TRANCO_BATCH_SIZE` default: `10`
 - `TRANCO_CSV_PATH` default: `tranco_W4XN9.csv`
-- `TRANCO_SCREENSHOT_DIR` default: `data/screenshots`
 - `TRANCO_REQUEST_TIMEOUT_MS` default: `45000`
 - `TRANCO_REQUEST_WAIT_MS` default: `1500`
 - `TRANCO_PREFLIGHT_TIMEOUT_SECONDS` default: `10`
@@ -69,8 +68,6 @@ PYTHONPATH=src python -m tranco_fetcher
 ```bash
 docker compose up --build
 ```
-
-Screenshots are written to `data/screenshots/`.
 
 ## Research Note
 

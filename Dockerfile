@@ -12,7 +12,5 @@ RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 COPY src /app/src
 COPY README.md /app/README.md
 
-RUN mkdir -p /app/data/screenshots
-
 ENTRYPOINT []
 CMD ["python", "-m", "tranco_fetcher"]
