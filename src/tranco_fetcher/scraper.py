@@ -144,6 +144,13 @@ class WebsiteScraper:
             return False
         return status_code < 400
 
+    @staticmethod
+    def _should_skip_preflight_status(status_code: int) -> bool:
+        # A plain requests preflight can hit bot protection while the browser fetch succeeds.
+        if status_code == 403:
+            return False
+        return status_code >= 400
+
     def _preflight_url(self, url: str) -> dict[str, Any]:
         try:
             response = requests.get(
@@ -170,7 +177,7 @@ class WebsiteScraper:
             return {
                 "final_url": response.url or url,
                 "status_code": response.status_code,
-                "skip": response.status_code >= 400,
+                "skip": self._should_skip_preflight_status(response.status_code),
                 "insecure": True,
             }
         except requests.RequestException as exc:
@@ -183,7 +190,7 @@ class WebsiteScraper:
         return {
             "final_url": response.url or url,
             "status_code": response.status_code,
-            "skip": response.status_code >= 400,
+            "skip": self._should_skip_preflight_status(response.status_code),
         }
 
     @staticmethod

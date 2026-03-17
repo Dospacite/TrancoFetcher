@@ -17,7 +17,8 @@ This project reads domains from `tranco_W4XN9.csv`, fetches website content with
   - `http://domain`
 - For domains without a subdomain, `www.` is tried first by default
 - Uses a fast HTTP preflight before opening the browser, so redirects like `google.com -> www.google.com` are resolved early
-- Continues to the next variant when a candidate is unreachable or returns HTTP `4xx`/`5xx`
+- Falls back to Scrapling Stealth Mode when preflight returns HTTP `403`, since bot protection can block the plain HTTP probe
+- Continues to the next variant when a candidate is unreachable or returns other HTTP `4xx`/`5xx` responses during preflight
 - Stores documents shaped like:
   - `url`
   - `title`
