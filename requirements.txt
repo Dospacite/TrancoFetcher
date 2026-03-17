@@ -1,0 +1,6 @@
+pymongo==4.16.0
+python-dotenv==1.2.2
+requests==2.32.5
+scrapling[fetchers]==0.4.2
+tldextract==5.3.1
+

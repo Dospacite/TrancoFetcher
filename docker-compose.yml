@@ -1,0 +1,23 @@
+services:
+  tranco-fetcher:
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app/src
+      TRANCO_CSV_PATH: /app/tranco_W4XN9.csv
+      TRANCO_SCREENSHOT_DIR: /app/data/screenshots
+      TRANCO_BATCH_SIZE: ${TRANCO_BATCH_SIZE:-10}
+      TRANCO_REQUEST_TIMEOUT_MS: ${TRANCO_REQUEST_TIMEOUT_MS:-45000}
+      TRANCO_REQUEST_WAIT_MS: ${TRANCO_REQUEST_WAIT_MS:-1500}
+      TRANCO_HEADLESS: ${TRANCO_HEADLESS:-true}
+      TRANCO_NETWORK_IDLE: ${TRANCO_NETWORK_IDLE:-true}
+      TRANCO_DISABLE_RESOURCES: ${TRANCO_DISABLE_RESOURCES:-false}
+      TRANCO_SOLVE_CLOUDFLARE: ${TRANCO_SOLVE_CLOUDFLARE:-true}
+      TRANCO_ALLOW_HTTP_FALLBACK: ${TRANCO_ALLOW_HTTP_FALLBACK:-true}
+      TRANCO_DRY_RUN: ${TRANCO_DRY_RUN:-false}
+    volumes:
+      - ./data:/app/data
+      - ./tranco_W4XN9.csv:/app/tranco_W4XN9.csv:ro
+
