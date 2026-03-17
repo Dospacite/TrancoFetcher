@@ -8,7 +8,7 @@ This project reads domains from `tranco_W4XN9.csv`, fetches website content with
 - Creates `tranco.websites` if it does not exist yet
 - Creates a unique index on `url`
 - Skips domains that already exist in `tranco.websites`
-- Fetches the next batch of unfetched Tranco domains with Scrapling's `StealthySession`
+- Continuously fetches unfetched Tranco domains in batches with Scrapling's `StealthySession` until none remain
 - Looks up RDAP metadata for each domain and falls back to WHOIS when RDAP is unavailable
 - Tries multiple hostname variants for each domain:
   - `https://www.domain`
@@ -62,6 +62,8 @@ source .venv/bin/activate
 PYTHONPATH=src python -m tranco_fetcher --dry-run
 PYTHONPATH=src python -m tranco_fetcher
 ```
+
+`--dry-run` still lists only the next batch. A normal run keeps processing batch after batch until no unfetched domains remain.
 
 ## Run With Docker Compose
 

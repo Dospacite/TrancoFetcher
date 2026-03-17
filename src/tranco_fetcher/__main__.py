@@ -65,7 +65,7 @@ def main() -> None:
             return
 
         if not targets:
-            logger.info("No unfetched domains remain for this batch.")
+            logger.info("No unfetched domains remain.")
             return
 
         with StealthySession(
@@ -79,10 +79,25 @@ def main() -> None:
             retries=1,
         ) as session:
             scraper = WebsiteScraper(settings=settings, session=session)
-            for target in targets:
-                document = scraper.scrape_target(target)
-                repository.upsert_document(document)
-                logger.info("Stored rank=%s domain=%s url=%s", target.rank, target.domain, document["url"])
+            batch_number = 1
+            while targets:
+                logger.info("Processing batch %s with %s domains", batch_number, len(targets))
+                for target in targets:
+                    document = scraper.scrape_target(target)
+                    repository.upsert_document(document)
+                    logger.info("Stored rank=%s domain=%s url=%s", target.rank, target.domain, document["url"])
+
+                targets = repository.next_batch_from_csv(settings.tranco_csv_path, settings.batch_size)
+                if targets:
+                    logger.info(
+                        "Selected %s additional unfetched domains from %s for batch %s",
+                        len(targets),
+                        settings.tranco_csv_path.name,
+                        batch_number + 1,
+                    )
+                batch_number += 1
+
+            logger.info("No unfetched domains remain.")
     finally:
         repository.close()
 
