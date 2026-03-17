@@ -46,13 +46,19 @@ class TrancoRepository:
 
     def fetched_domains(self) -> set[str]:
         domains: set[str] = set()
-        for document in self.collection.find({}, {"url": 1}):
+        for document in self.collection.find({}, {"url": 1, "metadata.requested_from": 1}):
+            metadata = document.get("metadata") or {}
+            requested_from = metadata.get("requested_from")
+            if requested_from:
+                normalized = normalize_domain(requested_from)
+                if normalized:
+                    domains.add(normalized)
+
             url = document.get("url")
-            if not url:
-                continue
-            normalized = normalize_domain(url)
-            if normalized:
-                domains.add(normalized)
+            if url:
+                normalized = normalize_domain(url)
+                if normalized:
+                    domains.add(normalized)
         return domains
 
     def next_batch_from_csv(self, csv_path: Path, limit: int) -> list[TrancoTarget]:
@@ -85,4 +91,3 @@ class TrancoRepository:
 
     def close(self) -> None:
         self.client.close()
-

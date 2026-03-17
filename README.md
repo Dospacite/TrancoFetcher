@@ -10,11 +10,10 @@ This project reads domains from `tranco_W4XN9.csv`, fetches website content with
 - Skips domains that already exist in `tranco.websites`
 - Continuously fetches unfetched Tranco domains in batches with Scrapling's `StealthySession` until none remain
 - Looks up RDAP metadata for each domain and falls back to WHOIS when RDAP is unavailable
+- Pins browser locale/timezone and `Accept-Language` to reduce locale drift from the collector environment
 - Tries multiple hostname variants for each domain:
   - `https://www.domain`
-  - `http://www.domain`
   - `https://domain`
-  - `http://domain`
 - For domains without a subdomain, `www.` is tried first by default
 - Uses a fast HTTP preflight before opening the browser, so redirects like `google.com -> www.google.com` are resolved early
 - Falls back to Scrapling Stealth Mode when preflight returns HTTP `403`, since bot protection can block the plain HTTP probe
@@ -46,14 +45,16 @@ The project reads these settings from `.env` or the container environment:
 - `MONGO_CONNECTION_STRING`
 - `TRANCO_BATCH_SIZE` default: `10`
 - `TRANCO_CSV_PATH` default: `tranco_W4XN9.csv`
-- `TRANCO_REQUEST_TIMEOUT_MS` default: `45000`
-- `TRANCO_REQUEST_WAIT_MS` default: `1500`
-- `TRANCO_PREFLIGHT_TIMEOUT_SECONDS` default: `10`
+- `TRANCO_REQUEST_TIMEOUT_MS` default: `5000`
+- `TRANCO_REQUEST_WAIT_MS` default: `3000`
+- `TRANCO_PREFLIGHT_TIMEOUT_SECONDS` default: `5`
 - `TRANCO_HEADLESS` default: `true`
 - `TRANCO_NETWORK_IDLE` default: `true`
 - `TRANCO_DISABLE_RESOURCES` default: `false`
 - `TRANCO_SOLVE_CLOUDFLARE` default: `true`
-- `TRANCO_ALLOW_HTTP_FALLBACK` default: `true`
+- `TRANCO_BROWSER_LOCALE` default: `en-US`
+- `TRANCO_BROWSER_TIMEZONE_ID` default: `UTC`
+- `TRANCO_ACCEPT_LANGUAGE` default: `en-US,en;q=0.9`
 - `TRANCO_DRY_RUN` default: `false`
 
 ## Run Locally

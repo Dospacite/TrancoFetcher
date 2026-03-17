@@ -129,12 +129,7 @@ class WebsiteScraper:
         if extracted.suffix and extracted.subdomain == "":
             hostnames = [f"www.{domain}", domain]
 
-        urls: list[str] = []
-        for hostname in hostnames:
-            urls.append(f"https://{hostname}")
-            if self.settings.allow_http_fallback:
-                urls.append(f"http://{hostname}")
-        return urls
+        return [f"https://{hostname}" for hostname in hostnames]
 
     @staticmethod
     def _is_usable_document(document: dict[str, Any]) -> bool:
@@ -152,12 +147,16 @@ class WebsiteScraper:
         return status_code >= 400
 
     def _preflight_url(self, url: str) -> dict[str, Any]:
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Accept-Language": self.settings.accept_language,
+        }
         try:
             response = requests.get(
                 url,
                 allow_redirects=True,
                 timeout=self.settings.preflight_timeout_seconds,
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers=headers,
             )
         except requests.exceptions.SSLError:
             try:
@@ -165,7 +164,7 @@ class WebsiteScraper:
                     url,
                     allow_redirects=True,
                     timeout=self.settings.preflight_timeout_seconds,
-                    headers={"User-Agent": "Mozilla/5.0"},
+                    headers=headers,
                     verify=False,
                 )
             except requests.RequestException as exc:
