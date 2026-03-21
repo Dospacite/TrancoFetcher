@@ -21,3 +21,9 @@ services:
       TRANCO_DRY_RUN: ${TRANCO_DRY_RUN:-false}
     volumes:
       - ./tranco_W4XN9.csv:/app/tranco_W4XN9.csv:ro
+    networks:
+      - xai
+
+networks:
+  xai:
+    external: true
