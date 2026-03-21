@@ -44,6 +44,7 @@ The project reads these settings from `.env` or the container environment:
 
 - `MONGO_CONNECTION_STRING`
 - `TRANCO_BATCH_SIZE` default: `10`
+- `TRANCO_MAX_CONCURRENCY` default: `4`
 - `TRANCO_CSV_PATH` default: `tranco_W4XN9.csv`
 - `TRANCO_REQUEST_TIMEOUT_MS` default: `5000`
 - `TRANCO_REQUEST_WAIT_MS` default: `3000`
@@ -63,15 +64,18 @@ The project reads these settings from `.env` or the container environment:
 source .venv/bin/activate
 PYTHONPATH=src python -m tranco_fetcher --dry-run
 PYTHONPATH=src python -m tranco_fetcher
+PYTHONPATH=src python -m tranco_fetcher --max-concurrency 2
 ```
 
-`--dry-run` still lists only the next batch. A normal run keeps processing batch after batch until no unfetched domains remain.
+`--dry-run` still lists only the next batch. A normal run keeps processing batch after batch until no unfetched domains remain. By default the fetcher runs up to 4 Scrapling sessions concurrently; tune that with `TRANCO_MAX_CONCURRENCY` or `--max-concurrency`.
 
 ## Run With Docker Compose
 
 ```bash
 docker compose up --build
 ```
+
+The compose service enables `init` and reserves `1gb` of shared memory to reduce headless browser crashes when multiple Scrapling sessions run concurrently.
 
 ## Research Note
 

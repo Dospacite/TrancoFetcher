@@ -2,12 +2,15 @@ services:
   tranco-fetcher:
     build:
       context: .
+    init: true
+    shm_size: 1gb
     env_file:
       - .env
     environment:
       PYTHONPATH: /app/src
       TRANCO_CSV_PATH: /app/tranco_W4XN9.csv
       TRANCO_BATCH_SIZE: ${TRANCO_BATCH_SIZE:-10}
+      TRANCO_MAX_CONCURRENCY: ${TRANCO_MAX_CONCURRENCY:-4}
       TRANCO_REQUEST_TIMEOUT_MS: ${TRANCO_REQUEST_TIMEOUT_MS:-5000}
       TRANCO_REQUEST_WAIT_MS: ${TRANCO_REQUEST_WAIT_MS:-3000}
       TRANCO_PREFLIGHT_TIMEOUT_SECONDS: ${TRANCO_PREFLIGHT_TIMEOUT_SECONDS:-5}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from .scraper import WebsiteScraper
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Fetch Tranco domains into MongoDB with Scrapling Stealth Mode.")
     parser.add_argument("--batch-size", type=int, help="Override TRANCO_BATCH_SIZE for this run.")
+    parser.add_argument("--max-concurrency", type=int, help="Override TRANCO_MAX_CONCURRENCY for this run.")
     parser.add_argument("--dry-run", action="store_true", help="List the next batch without fetching or writing.")
     return parser
 
@@ -26,6 +28,28 @@ def configure_logging() -> None:
     )
 
 
+def build_session(settings: Settings) -> StealthySession:
+    return StealthySession(
+        headless=settings.headless,
+        network_idle=settings.network_idle,
+        disable_resources=settings.disable_resources,
+        solve_cloudflare=settings.solve_cloudflare,
+        locale=settings.browser_locale,
+        timezone_id=settings.browser_timezone_id,
+        extra_headers={"Accept-Language": settings.accept_language},
+        timeout=settings.request_timeout_ms,
+        wait=settings.request_wait_ms,
+        google_search=False,
+        retries=1,
+    )
+
+
+def scrape_target(target, settings: Settings) -> tuple:
+    with build_session(settings) as session:
+        scraper = WebsiteScraper(settings=settings, session=session)
+        return target, scraper.scrape_target(target)
+
+
 def main() -> None:
     configure_logging()
     parser = build_parser()
@@ -34,6 +58,8 @@ def main() -> None:
     settings = Settings.from_env(project_root=Path.cwd())
     if args.batch_size:
         settings = replace(settings, batch_size=args.batch_size)
+    if args.max_concurrency:
+        settings = replace(settings, max_concurrency=max(1, args.max_concurrency))
     if args.dry_run:
         settings = replace(settings, dry_run=True)
 
@@ -68,39 +94,33 @@ def main() -> None:
             logger.info("No unfetched domains remain.")
             return
 
-        with StealthySession(
-            headless=settings.headless,
-            network_idle=settings.network_idle,
-            disable_resources=settings.disable_resources,
-            solve_cloudflare=settings.solve_cloudflare,
-            locale=settings.browser_locale,
-            timezone_id=settings.browser_timezone_id,
-            extra_headers={"Accept-Language": settings.accept_language},
-            timeout=settings.request_timeout_ms,
-            wait=settings.request_wait_ms,
-            google_search=False,
-            retries=1,
-        ) as session:
-            scraper = WebsiteScraper(settings=settings, session=session)
-            batch_number = 1
-            while targets:
-                logger.info("Processing batch %s with %s domains", batch_number, len(targets))
-                for target in targets:
-                    document = scraper.scrape_target(target)
+        batch_number = 1
+        while targets:
+            worker_count = min(len(targets), settings.max_concurrency)
+            logger.info(
+                "Processing batch %s with %s domains using up to %s concurrent Scrapling sessions",
+                batch_number,
+                len(targets),
+                worker_count,
+            )
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = [executor.submit(scrape_target, target, settings) for target in targets]
+                for future in as_completed(futures):
+                    target, document = future.result()
                     repository.upsert_document(document)
                     logger.info("Stored rank=%s domain=%s url=%s", target.rank, target.domain, document["url"])
 
-                targets = repository.next_batch_from_csv(settings.tranco_csv_path, settings.batch_size)
-                if targets:
-                    logger.info(
-                        "Selected %s additional unfetched domains from %s for batch %s",
-                        len(targets),
-                        settings.tranco_csv_path.name,
-                        batch_number + 1,
-                    )
-                batch_number += 1
+            targets = repository.next_batch_from_csv(settings.tranco_csv_path, settings.batch_size)
+            if targets:
+                logger.info(
+                    "Selected %s additional unfetched domains from %s for batch %s",
+                    len(targets),
+                    settings.tranco_csv_path.name,
+                    batch_number + 1,
+                )
+            batch_number += 1
 
-            logger.info("No unfetched domains remain.")
+        logger.info("No unfetched domains remain.")
     finally:
         repository.close()
 

@@ -36,6 +36,7 @@ class Settings:
     mongo_db_name: str = "tranco"
     mongo_collection_name: str = "websites"
     batch_size: int = 10
+    max_concurrency: int = 4
     request_timeout_ms: int = 5_000
     request_wait_ms: int = 3_000
     preflight_timeout_seconds: int = 5
@@ -67,6 +68,7 @@ class Settings:
             mongo_connection_string=mongo_connection_string,
             tranco_csv_path=csv_path,
             batch_size=_env_int("TRANCO_BATCH_SIZE", 10),
+            max_concurrency=max(1, _env_int("TRANCO_MAX_CONCURRENCY", 4)),
             request_timeout_ms=_env_int("TRANCO_REQUEST_TIMEOUT_MS", 5_000),
             request_wait_ms=_env_int("TRANCO_REQUEST_WAIT_MS", 3_000),
             preflight_timeout_seconds=_env_int("TRANCO_PREFLIGHT_TIMEOUT_SECONDS", 5),
